@@ -4,7 +4,7 @@
  [{"git":
    {"url": "git@github.com:algebraic-sofia/soda.git",
     "subDir?": null,
-    "rev": "ccee4dc79fa348c7901315c28afc7d6347112884",
+    "rev": "32ce9234fadfec34f54eb33a2adc65f165397c67",
     "name": "soda",
     "inputRev?": null}},
   {"git":

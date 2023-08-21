@@ -6,6 +6,8 @@ import Soda.Grape.Text
 open Grape
 open Function
 
+namespace Ash.JSON
+
 inductive JSON where
   | obj  : List (String × JSON) → JSON
   | arr  : List JSON → JSON
@@ -40,3 +42,5 @@ def JSON.parse (s: String) : Option JSON :=
   match Grape.run JSON.expr (s.toSlice) with
   | Result.done res _ => some res
   | _                 => none
+
+end Ash.JSON
