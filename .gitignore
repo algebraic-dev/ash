@@ -2,3 +2,5 @@
 /lean_packages/*
 !/lean_packages/manifest.json
 lean_packages
+lake_packages
+lake-packages/*
