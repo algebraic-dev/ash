@@ -78,7 +78,7 @@ def App.put (path : String) (component : Component) : App Unit :=
 def App.delete (path : String) (component : Component) : App Unit :=
   on Melp.Method.Delete path component
   
-def App.run (app: App f) (addr : String) (port : String) : IO Unit := do
+def App.run (app: App f) (addr : String) (port : String) (callback: IO Unit) : IO Unit := do
     let server ← Melp.Server.new 
 
     let ⟨_, routes⟩ ← app.data #[]
@@ -108,6 +108,8 @@ def App.run (app: App f) (addr : String) (port : String) : IO Unit := do
           let response ← result
           conn.answer response.status [] response.body
       | none => conn.answer Melp.Status.NotFound [] "Not found"
+
+    let server := server.onBind $ λ_ => callback
 
     Melp.Server.start server addr port
   where

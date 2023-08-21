@@ -17,6 +17,30 @@ inductive JSON where
   | null : JSON
   deriving Repr, Inhabited
 
+class ToJSON (e : Type) where
+  toJSON : e → JSON
+
+instance [ToJSON f] : ToJSON (List f) where
+  toJSON := JSON.arr ∘ List.map ToJSON.toJSON
+
+instance [ToJSON f] : ToJSON (Array f) where
+  toJSON := JSON.arr ∘ Array.toList ∘ Array.map ToJSON.toJSON
+
+instance [ToJSON f] : ToJSON (List (String × f)) where
+  toJSON := JSON.obj ∘ List.map (λ (k, v) => (k, ToJSON.toJSON v))
+
+instance : ToJSON String where
+  toJSON := JSON.str
+
+instance : ToJSON Nat where
+  toJSON := JSON.num
+
+instance : ToJSON Bool where
+  toJSON := JSON.bool
+
+instance : ToJSON JSON where
+  toJSON := id
+
 def JSON.token : Grape α → Grape α := Text.trailing
 
 def JSON.pString : Grape String :=
@@ -43,4 +67,11 @@ def JSON.parse (s: String) : Option JSON :=
   | Result.done res _ => some res
   | _                 => none
 
+namespace JSON
+
+notation:max "`{" e "}" => ToJSON.toJSON [e]
+notation:max "`{" "}" => JSON.obj []
+notation:max k "+:" v   => (k, v) 
+
+end JSON
 end Ash
