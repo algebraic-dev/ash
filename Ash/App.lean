@@ -1,40 +1,37 @@
+-- Entrypoint of the framework. It defines the App monad and the App.run function. 
+
 import Ash.JSON
 import Ash.Path
+import Ash.Body
+
 import Melp
 import Lina
+
+open Ash.Body
 
 open Melp.Request
 
 namespace Ash
 
-inductive Method where
-  | Get
-  | Post
-  | Put
-  | Delete
-  | Patch
-  | Head
-  | Options
+structure Request where
+  melp     : Melp.Request
+  bindings : Lean.HashMap String String
+  path     : Ash.Path
+  query    : Lean.HashMap String String
+  
+def Request.ok [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
+  pure { status := Melp.Status.Ok, headers := [], body := ToBody.toBody body }
 
-def Method.toString : Method → String
-  | Get => "GET"
-  | Post => "POST"
-  | Put => "PUT"
-  | Delete => "DELETE"
-  | Patch => "PATCH"
-  | Head => "HEAD"
-  | Options => "OPTIONS"
-
-def Component : Type := Melp.Request Melp.Request.Status.Open 
-                     → Lean.HashMap String String
-                     → Ash.Path
-                     → IO (Melp.Request Melp.Request.Status.Closed)
+def Component : Type
+  := Ash.Request
+   → IO (Melp.Response)
 
 structure Route where
   path      : List Ash.Pattern
-  method    : Method
+  method    : Melp.Method
   component : Component
 
+-- Yeah it's a state monad but I don't care ok? I'll adjust it in the future.
 structure App (e : Type) where
   data : (Array Route -> IO (e × Array Route))
 
@@ -42,7 +39,7 @@ structure App (e : Type) where
 def Prod.first {α β} :  (α → γ) → Prod α β →Prod γ β
   | f, ⟨a, b⟩ => ⟨f a, b⟩
 
-
+-- Horrible looking code. I wish I could use a state monad here but it's too late, I already wrote the code.
 instance : Monad App where
   map f b := App.mk (λroutes => Prod.first f <$> (b.data routes))
   pure f  := App.mk (λroutes => pure (f, routes))
@@ -53,23 +50,24 @@ instance : Monad App where
     let ⟨f, routes'⟩ ← f.data routes
     (a f).data routes'
 
-def App.on (method : Method) (path : String) (component : Component) : App Unit :=
+
+def App.on (method : Melp.Method) (path : String) (component : Component) : App Unit :=
   App.mk $ λroutes => do
     let path   := Ash.Path.Pattern.parse path
     let routes := routes.push { path := path, method := method, component := component }
     pure ((), routes)
 
 def App.get (path : String) (component : Component) : App Unit :=
-  on Method.Get path component
+  on Melp.Method.Get path component
 
 def App.post (path : String) (component : Component) : App Unit :=
-  on Method.Post path component
+  on Melp.Method.Post path component
 
 def App.put (path : String) (component : Component) : App Unit :=
-  on Method.Put path component
+  on Melp.Method.Put path component
 
 def App.delete (path : String) (component : Component) : App Unit :=
-  on Method.Delete path component
+  on Melp.Method.Delete path component
   
 def App.run (app: App f) (addr : String) (port : String) : IO Unit := do
     let server ← Melp.Server.new 
@@ -79,22 +77,33 @@ def App.run (app: App f) (addr : String) (port : String) : IO Unit := do
     let server := server.onConnection $ λconn => do
       let mut foundRoute := none
 
-      for route in routes do
-        if route.method.toString == conn.data.method 
-          then 
-            match parsePath route.path conn.data.path with
-            | some (params, path) => do
-              foundRoute := some (route.component conn params path)
-              break
-            | none => continue
-          else continue
-      
+      match conn.method with
+      | none => pure ()
+      | some method =>
+          for route in routes do
+            if route.method == method 
+              then 
+                match parsePath route.path conn.data.path with
+                | some (params, path) => do
+                    let request := { melp     := conn
+                                   , bindings := params
+                                   , path     := path
+                                   , query    := path.query.getD Lean.HashMap.empty }
+                    foundRoute := some (route.component request)
+                    break
+                | none => continue
+              else continue
+          
       match foundRoute with
-      | some result => result
-      | none => conn.notFound
+      | some result => do
+          let response ← result
+          conn.answer response.status [] response.body
+      | none => conn.answer Melp.Status.NotFound [] "Not found"
 
     Melp.Server.start server addr port
   where
+
+
     parsePath (pattern: List Ash.Pattern) (path : String) : Option (Lean.HashMap String String × Ash.Path) := do
       let path   ← Ash.Path.parse path
       let match' ← Ash.Path.matchPats pattern path

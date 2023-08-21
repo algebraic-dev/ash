@@ -22,6 +22,6 @@
   {"git":
    {"url": "git@github.com:algebraic-sofia/melp.git",
     "subDir?": null,
-    "rev": "8c4a5de5f2785753e0adff3258c4f5c0427a2cfa",
+    "rev": "2a84a574bf8911e569086df3fed0a33c1689d21a",
     "name": "melp",
     "inputRev?": null}}]}

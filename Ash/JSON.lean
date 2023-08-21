@@ -6,7 +6,7 @@ import Soda.Grape.Text
 open Grape
 open Function
 
-namespace Ash.JSON
+namespace Ash
 
 inductive JSON where
   | obj  : List (String × JSON) → JSON
@@ -43,4 +43,4 @@ def JSON.parse (s: String) : Option JSON :=
   | Result.done res _ => some res
   | _                 => none
 
-end Ash.JSON
+end Ash

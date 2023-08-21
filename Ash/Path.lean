@@ -1,3 +1,4 @@
+-- A simple URI Parser based on https://www.w3.org/Addressing/URL/5_URI_BNF.html
 import Lean.Data.HashMap
 
 import Soda
