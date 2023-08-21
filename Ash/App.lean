@@ -22,6 +22,15 @@ structure Request where
 def Request.ok [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
   pure { status := Melp.Status.Ok, headers := [], body := ToBody.toBody body }
 
+def Request.created [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
+  pure { status := Melp.Status.Created, headers := [], body := ToBody.toBody body }
+
+def Request.unprocessableEntity [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
+  pure { status := Melp.Status.UnprocessableEntity, headers := [], body := ToBody.toBody body }
+
+def Request.badRequest [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
+  pure { status := Melp.Status.BadRequest, headers := [], body := ToBody.toBody body }
+
 def Component : Type
   := Ash.Request
    → IO (Melp.Response)
