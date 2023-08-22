@@ -41,15 +41,15 @@ def Request.created [ToBody e] (_req: Request) (body : e) (location: String) : I
 
 def Request.unprocessableEntity [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
   let body := ToBody.toBody body
-  pure { status := Melp.Status.UnprocessableEntity, headers := headers body, body := body }
+  pure { status := Melp.Status.UnprocessableEntity, headers := [], body := body }
 
 def Request.badRequest [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
   let body := ToBody.toBody body
-  pure { status := Melp.Status.BadRequest, headers := headers body, body := body }
+  pure { status := Melp.Status.BadRequest, headers := [], body := body }
 
 def Request.notFound [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
   let body := ToBody.toBody body
-  pure { status := Melp.Status.NotFound, headers := headers body, body := body }
+  pure { status := Melp.Status.NotFound, headers := [], body := body }
 
 def Component : Type
   := Ash.Request
