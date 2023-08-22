@@ -106,8 +106,6 @@ def App.run (app: App f) (addr : String) (port : String) (callback: IO Unit) : I
     let server := server.onConnection $ λconn => do
       let mut foundRoute := none
 
-      IO.println s!"{conn.method} {conn.data.path}"
-
       match conn.method with
       | none => pure ()
       | some method =>
