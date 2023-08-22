@@ -35,21 +35,21 @@ def Request.ok [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
   pure { status := Melp.Status.Ok, headers := headers body, body := body }
 
 def Request.created [ToBody e] (_req: Request) (body : e) (location: String) : IO Melp.Response :=
-  let body     := ToBody.toBody body
+  let body := ToBody.toBody body
   let location := ⟨"Location", location⟩
   pure { status := Melp.Status.Created, headers := location :: headers body, body := body }
 
 def Request.unprocessableEntity [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
   let body := ToBody.toBody body
-  pure { status := Melp.Status.UnprocessableEntity, headers := [], body := body }
+  pure { status := Melp.Status.UnprocessableEntity, headers := headers body, body := body }
 
 def Request.badRequest [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
   let body := ToBody.toBody body
-  pure { status := Melp.Status.BadRequest, headers := [], body := body }
+  pure { status := Melp.Status.BadRequest, headers := headers body, body := body }
 
 def Request.notFound [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
   let body := ToBody.toBody body
-  pure { status := Melp.Status.NotFound, headers := [], body := body }
+  pure { status := Melp.Status.NotFound, headers := headers body, body := body }
 
 def Component : Type
   := Ash.Request
@@ -105,6 +105,8 @@ def App.run (app: App f) (addr : String) (port : String) (callback: IO Unit) : I
 
     let server := server.onConnection $ λconn => do
       let mut foundRoute := none
+
+      IO.println s!"{conn.method} {conn.data.path}"
 
       match conn.method with
       | none => pure ()
