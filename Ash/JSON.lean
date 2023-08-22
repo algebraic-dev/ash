@@ -65,7 +65,7 @@ instance : FromJSON JSON where
 
 instance [FromJSON t] : FromJSON (Option t) where
   fromJSON 
-    | JSON.null       => none
+    | JSON.null       => some none
     | t               => some (FromJSON.fromJSON t)
 
 instance [FromJSON t] : FromJSON (List t) where
