@@ -34,9 +34,10 @@ def Request.ok [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
   let body := ToBody.toBody body
   pure { status := Melp.Status.Ok, headers := headers body, body := body }
 
-def Request.created [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
-  let body := ToBody.toBody body
-  pure { status := Melp.Status.Created, headers := headers body, body := body }
+def Request.created [ToBody e] (_req: Request) (body : e) (location: String) : IO Melp.Response :=
+  let body     := ToBody.toBody body
+  let location := ⟨"Location", location⟩
+  pure { status := Melp.Status.Created, headers := location :: headers body, body := body }
 
 def Request.unprocessableEntity [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
   let body := ToBody.toBody body
