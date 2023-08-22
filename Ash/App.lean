@@ -126,7 +126,7 @@ def App.run (app: App f) (addr : String) (port : String) (callback: IO Unit) : I
       match foundRoute with
       | some result => do
           let response ← result
-          conn.answer response.status [] response.body
+          conn.answer response.status response.headers response.body
       | none => conn.answer Melp.Status.NotFound [] "Not found"
 
     let server := server.onBind $ λ_ => callback
