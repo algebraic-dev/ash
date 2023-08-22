@@ -71,7 +71,7 @@ namespace JSON
 
 notation:max "`{" e "}" => ToJSON.toJSON [e]
 notation:max "`{" "}" => JSON.obj []
-notation:max k "+:" v   => (k, v) 
+notation:max k "+:" v   => (k, ToJSON.toJSON v) 
 
 end JSON
 end Ash
