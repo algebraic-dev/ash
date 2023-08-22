@@ -22,6 +22,26 @@ inductive JSON where
   | null : JSON
   deriving Repr, Inhabited
 
+partial def JSON.toString : JSON → String
+    | JSON.obj object           => 
+      let entries := object.map $ λ (k, v) => 
+        let body := toString v
+        s!"\"{k}\": {body}"
+      let entries := String.intercalate ", " entries
+      s!"\{{entries}}"
+    | JSON.null              => "null"
+    | JSON.bool true         => "true"
+    | JSON.bool false        => "false"
+    | JSON.num n             => s!"{n}"
+    | JSON.str strr           => s!"\"{strr}\""
+    | JSON.arr arrr           => 
+      let entries := arrr.map toString
+      let entries := String.intercalate ", " entries
+      s!"[{entries}]"
+
+instance : ToString JSON where
+  toString := JSON.toString
+
 class FromJSON (e : Type) where
   fromJSON : JSON → Option e
 
