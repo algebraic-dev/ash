@@ -6,6 +6,11 @@ import Soda.Grape.Text
 open Grape
 open Function
 
+def sequence : List (Option t) → Option (List t)
+  | some x :: y => (x :: ·) <$> (sequence y)
+  | none   :: _ => none
+  | []          => some []
+
 namespace Ash
 
 inductive JSON where
@@ -16,6 +21,29 @@ inductive JSON where
   | bool : Bool → JSON
   | null : JSON
   deriving Repr, Inhabited
+
+class FromJSON (e : Type) where
+  fromJSON : JSON → Option e
+
+instance : FromJSON String where
+  fromJSON 
+    | (JSON.str s) => some s
+    | _            => none
+
+instance : FromJSON Nat where
+  fromJSON 
+    | (JSON.num s) => some s
+    | _            => none
+
+instance : FromJSON Bool where
+  fromJSON 
+    | (JSON.bool s) => some s
+    | _            => none
+
+instance [FromJSON t] : FromJSON (List t) where
+  fromJSON 
+    | (JSON.arr arr)  => sequence $ FromJSON.fromJSON <$> arr
+    | _               => none
 
 class ToJSON (e : Type) where
   toJSON : e → JSON
@@ -67,10 +95,19 @@ def JSON.parse (s: String) : Option JSON :=
   | Result.done res _ => some res
   | _                 => none
 
+def JSON.find? [FromJSON e] (k: String) : JSON → Option e
+  | JSON.obj object => List.lookup k object >>= FromJSON.fromJSON
+  | _               => none
+
 namespace JSON
 
-notation:max "`{" e "}" => ToJSON.toJSON [e]
-notation:max "`{" "}" => JSON.obj []
+syntax (priority := high) "`{" term,* "}" : term
+
+/- Declares two expansions/syntax transformers -/
+macro_rules
+  | `(`{$xs:term,*}) => `(ToJSON.toJSON [$xs,*])
+
+
 notation:max k "+:" v   => (k, ToJSON.toJSON v) 
 
 end JSON
