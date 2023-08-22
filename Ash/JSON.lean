@@ -40,6 +40,14 @@ instance : FromJSON Bool where
     | (JSON.bool s) => some s
     | _            => none
 
+instance : FromJSON JSON where
+  fromJSON f := f
+
+instance [FromJSON t] : FromJSON (Option t) where
+  fromJSON 
+    | JSON.null       => none
+    | t               => some (FromJSON.fromJSON t)
+
 instance [FromJSON t] : FromJSON (List t) where
   fromJSON 
     | (JSON.arr arr)  => sequence $ FromJSON.fromJSON <$> arr
@@ -95,7 +103,8 @@ def JSON.parse (s: String) : Option JSON :=
   | Result.done res _ => some res
   | _                 => none
 
-def JSON.find? [FromJSON e] (k: String) : JSON → Option e
+def JSON.find? [FromJSON e] (json: JSON) (k: String) : Option e :=
+  match json with
   | JSON.obj object => List.lookup k object >>= FromJSON.fromJSON
   | _               => none
 
@@ -105,8 +114,8 @@ syntax (priority := high) "`{" term,* "}" : term
 
 /- Declares two expansions/syntax transformers -/
 macro_rules
+  | `(`{})           => `(JSON.obj [])
   | `(`{$xs:term,*}) => `(ToJSON.toJSON [$xs,*])
-
 
 notation:max k "+:" v   => (k, ToJSON.toJSON v) 
 
