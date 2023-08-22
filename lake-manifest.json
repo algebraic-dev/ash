@@ -2,7 +2,7 @@
  "packagesDir": "lake-packages",
  "packages":
  [{"git":
-   {"url": "git@github.com:algebraic-sofia/soda.git",
+   {"url": "https://github.com/algebraic-sofia/soda.git",
     "subDir?": null,
     "rev": "32ce9234fadfec34f54eb33a2adc65f165397c67",
     "name": "soda",
@@ -14,13 +14,13 @@
     "name": "socket",
     "inputRev?": null}},
   {"git":
-   {"url": "git@github.com:algebraic-sofia/lina.git",
+   {"url": "https://github.com/algebraic-sofia/lina.git",
     "subDir?": null,
-    "rev": "3169fda8f285d82095424c3a4a7c67214f20816c",
+    "rev": "0b435543d72c5152bb25fa9e171127827f496a8b",
     "name": "lina",
     "inputRev?": null}},
   {"git":
-   {"url": "git@github.com:algebraic-sofia/melp.git",
+   {"url": "https://github.com/algebraic-sofia/melp.git",
     "subDir?": null,
     "rev": "2a84a574bf8911e569086df3fed0a33c1689d21a",
     "name": "melp",

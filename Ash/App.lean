@@ -18,18 +18,33 @@ structure Request where
   bindings : Lean.HashMap String String
   path     : Ash.Path
   query    : Lean.HashMap String String
+
+def headers (s: String) : List (String × String) :=
+  [ ("Content-Length", toString s.length),
+    ("Content-Type", "application/json")
+  ]
+
+def Request.body (req: Request) : String := 
+  req.melp.data.body
+
+def Request.json [FromJSON e] (req: Request) : Option e := 
+  FromJSON.fromJSON =<< JSON.parse req.melp.data.body
   
 def Request.ok [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
-  pure { status := Melp.Status.Ok, headers := [], body := ToBody.toBody body }
+  let body := ToBody.toBody body
+  pure { status := Melp.Status.Ok, headers := headers body, body := body }
 
 def Request.created [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
-  pure { status := Melp.Status.Created, headers := [], body := ToBody.toBody body }
+  let body := ToBody.toBody body
+  pure { status := Melp.Status.Created, headers := headers body, body := body }
 
 def Request.unprocessableEntity [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
-  pure { status := Melp.Status.UnprocessableEntity, headers := [], body := ToBody.toBody body }
+  let body := ToBody.toBody body
+  pure { status := Melp.Status.UnprocessableEntity, headers := headers body, body := body }
 
 def Request.badRequest [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
-  pure { status := Melp.Status.BadRequest, headers := [], body := ToBody.toBody body }
+  let body := ToBody.toBody body
+  pure { status := Melp.Status.BadRequest, headers := headers body, body := body }
 
 def Component : Type
   := Ash.Request
