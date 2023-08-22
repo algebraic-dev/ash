@@ -46,6 +46,10 @@ def Request.badRequest [ToBody e] (_req: Request) (body : e) : IO Melp.Response 
   let body := ToBody.toBody body
   pure { status := Melp.Status.BadRequest, headers := headers body, body := body }
 
+def Request.notFound [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
+  let body := ToBody.toBody body
+  pure { status := Melp.Status.NotFound, headers := headers body, body := body }
+
 def Component : Type
   := Ash.Request
    → IO (Melp.Response)
