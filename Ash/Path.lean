@@ -44,6 +44,16 @@ structure Path where
   query : Option (Lean.HashMap String  String)
   
 def Path.toHex : Char -> Nat
+  | '0' => 0
+  | '1' => 1
+  | '2' => 2
+  | '3' => 3
+  | '4' => 4
+  | '5' => 5
+  | '6' => 6
+  | '7' => 7
+  | '8' => 8
+  | '9' => 9
   | 'a' | 'A' => 10
   | 'b' | 'B' => 11
   | 'c' | 'C' => 12
