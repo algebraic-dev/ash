@@ -64,7 +64,10 @@ structure Router (α: Type) where
   routes : HashMap Melp.Method (Ash.RouteMap α)
 
 def Router.push (router: Router Component) (path: List Ash.Pattern) (method: Melp.Method) (comp: Component) : Router Component :=
-  { router with routes := router.routes.update method (·.insert path comp) }
+  { router with routes := 
+      let map := router.routes.findD method RouteMap.empty
+      router.routes.insert method (map.insert path comp)
+  }
 
 def Router.get (router: Router Component) (path: Path) (method: Melp.Method) : Option (Component × Lean.HashMap String String) := do
   let map ← router.routes.find? method
@@ -119,10 +122,10 @@ def App.run (app: App f) (addr : String) (port : String) (callback: IO Unit) : I
       let path := Ash.Path.parse conn.data.path
 
       match conn.method, path with
-      | none, _ | _, none => pure ()
+      | none, _ | _, none => dbg_trace "be"; pure ()
       | some method, some path =>
           match routes.get path method with
-          | none => pure ()
+          | none => dbg_trace "ata"; pure ()
           | some (comp, params) => do
             let request :=
               { melp     := conn
