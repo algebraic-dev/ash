@@ -1,7 +1,9 @@
 import Soda
 
+import Lean
 import Soda.Grape
 import Soda.Grape.Text
+import Ash.Map
 
 open Grape
 open Function
@@ -14,7 +16,7 @@ def sequence : List (Option t) → Option (List t)
 namespace Ash
 
 inductive JSON where
-  | obj  : List (String × JSON) → JSON
+  | obj  : HashMap String JSON → JSON
   | arr  : List JSON → JSON
   | str  : String → JSON
   | num  : Nat → JSON
@@ -23,8 +25,8 @@ inductive JSON where
   deriving Repr, Inhabited
 
 partial def JSON.toString : JSON → String
-    | JSON.obj object           => 
-      let entries := object.map $ λ (k, v) => 
+    | JSON.obj object           =>
+      let entries := (object.toList).map $ λ (k, v) =>
         let body := toString v
         s!"\"{k}\": {body}"
       let entries := String.intercalate ", " entries
@@ -34,7 +36,7 @@ partial def JSON.toString : JSON → String
     | JSON.bool false        => "false"
     | JSON.num n             => s!"{n}"
     | JSON.str strr           => s!"\"{strr}\""
-    | JSON.arr arrr           => 
+    | JSON.arr arrr           =>
       let entries := arrr.map toString
       let entries := String.intercalate ", " entries
       s!"[{entries}]"
@@ -46,17 +48,17 @@ class FromJSON (e : Type) where
   fromJSON : JSON → Option e
 
 instance : FromJSON String where
-  fromJSON 
+  fromJSON
     | (JSON.str s) => some s
     | _            => none
 
 instance : FromJSON Nat where
-  fromJSON 
+  fromJSON
     | (JSON.num s) => some s
     | _            => none
 
 instance : FromJSON Bool where
-  fromJSON 
+  fromJSON
     | (JSON.bool s) => some s
     | _            => none
 
@@ -64,12 +66,12 @@ instance : FromJSON JSON where
   fromJSON f := f
 
 instance [FromJSON t] : FromJSON (Option t) where
-  fromJSON 
+  fromJSON
     | JSON.null       => some none
     | t               => some (FromJSON.fromJSON t)
 
 instance [FromJSON t] : FromJSON (List t) where
-  fromJSON 
+  fromJSON
     | (JSON.arr arr)  => sequence $ FromJSON.fromJSON <$> arr
     | _               => none
 
@@ -83,7 +85,7 @@ instance [ToJSON f] : ToJSON (Array f) where
   toJSON := JSON.arr ∘ Array.toList ∘ Array.map ToJSON.toJSON
 
 instance [ToJSON f] : ToJSON (List (String × f)) where
-  toJSON := JSON.obj ∘ List.map (λ (k, v) => (k, ToJSON.toJSON v))
+  toJSON := JSON.obj ∘ HashMap.fromList ∘ List.map (λ (k, v) => (k, ToJSON.toJSON v))
 
 instance : ToJSON String where
   toJSON := JSON.str
@@ -114,18 +116,18 @@ partial def JSON.expr : Grape JSON := token $
     <|> ((λ_ => JSON.bool true)  <$> label "true" (string "true"))
     <|> ((λ_ => JSON.bool false) <$> label "false" (string "false"))
     <|> (arr <$> (string "[" *> space *> sepBy expr (space *> (token $ string ",") <* space) <* space <* (token $ string "]")))
-    <|> (obj <$> (string "{" *> space *> sepBy pair (space *> (token $ string ",") <* space) <* space <* (token $ string "}")))
+    <|> ((obj ∘ HashMap.fromList) <$> (string "{" *> space *> sepBy pair (space *> (token $ string ",") <* space) <* space <* (token $ string "}")))
   where
     pair := Prod.mk <$> (JSON.pString <* (space *> (token $ string ":") <* space)) <*> expr
 
-def JSON.parse (s: String) : Option JSON := 
+def JSON.parse (s: String) : Option JSON :=
   match Grape.run JSON.expr (s.toSlice) with
   | Result.done res _ => some res
   | _                 => none
 
 def JSON.find? [FromJSON e] (json: JSON) (k: String) : Option e :=
   match json with
-  | JSON.obj object => List.lookup k object >>= FromJSON.fromJSON
+  | JSON.obj object => object.find? k >>= FromJSON.fromJSON
   | _               => none
 
 namespace JSON
@@ -137,7 +139,7 @@ macro_rules
   | `(`{})           => `(JSON.obj [])
   | `(`{$xs:term,*}) => `(ToJSON.toJSON [$xs,*])
 
-notation:max k "+:" v   => (k, ToJSON.toJSON v) 
+notation:max k "+:" v   => (k, ToJSON.toJSON v)
 
 end JSON
 end Ash

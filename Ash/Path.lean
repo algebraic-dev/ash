@@ -5,6 +5,8 @@ import Soda
 import Soda.Grape
 import Soda.Grape.Text
 
+import Ash.Map
+
 open Grape
 open Grape.Text
 open Function
@@ -30,19 +32,19 @@ def Path.Pattern.pat : Grape (List Pattern) :=
   sepBy Path.Pattern.part (chr '/')
 
 def Path.Pattern.parse (pattern: String) : List Pattern :=
-    garantee (Grape.run (Path.Pattern.pat) (pattern.toSlice))    
+    garantee (Grape.run (Path.Pattern.pat) (pattern.toSlice))
   where
-    garantee : Result (List Pattern) → List Pattern 
+    garantee : Result (List Pattern) → List Pattern
       | Result.done res _ => res
       | Result.cont e     => garantee (e "".toSlice)
       | Result.error _ e  => [Pattern.Literal e]
-    
+
 -- Path parsing
 
 structure Path where
   segments : List String
   query : Option (Lean.HashMap String  String)
-  
+
 def Path.toHex : Char -> Nat
   | '0' => 0
   | '1' => 1
@@ -88,16 +90,25 @@ partial def Path.parse_query : Grape (Lean.HashMap String String) := do
 
 def Path.parse_path := do
   let segments ← sepBy Path.xalphas (string "/")
-  let query ← option (string "?" *> Path.parse_query) 
+  let query ← option (string "?" *> Path.parse_query)
   Grape.pure (Path.mk segments query)
 
 def Path.parse (str: String) : Option Path :=
-    garantee (Grape.run parse_path (str.toSlice))    
+    garantee (Grape.run parse_path (str.toSlice))
   where
     garantee : Result Path → Option Path
       | Result.done res _ => some res
       | Result.cont e     => garantee (e "".toSlice)
       | Result.error _ _  => none
+
+inductive RouteMap (α: Type)
+  | fork    : HashMap String (RouteMap α) → Option (String × RouteMap α) → RouteMap α
+  | variant : String → RouteMap α → RouteMap α
+  | final   : α → RouteMap α
+
+def RouteMap.insert (map: RouteMap α) (pat: List Pattern) (x: α) :=
+  match map with
+  | literal 
 
 def Path.matchPats (pattern: List Pattern) (path: Path) : Option (Lean.HashMap String String) :=
   let rec match' : List Pattern → List String → Lean.HashMap String String → Option (Lean.HashMap String String)

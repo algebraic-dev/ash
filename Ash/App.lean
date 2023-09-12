@@ -60,6 +60,9 @@ structure Route where
   method    : Melp.Method
   component : Component
 
+structure Router where
+  routes : HashMap Melp.Method RouterMap
+
 -- Yeah it's a state monad but I don't care ok? I'll adjust it in the future.
 structure App (e : Type) where
   data : (Array Route -> IO (e × Array Route))
