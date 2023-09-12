@@ -24,12 +24,12 @@ def headers (s: String) : List (String × String) :=
     ("Content-Type", "application/json")
   ]
 
-def Request.body (req: Request) : String :=
+def Request.body (req: Request) : String := 
   req.melp.data.body
 
-def Request.json [FromJSON e] (req: Request) : Option e :=
+def Request.json [FromJSON e] (req: Request) : Option e := 
   FromJSON.fromJSON =<< JSON.parse req.melp.data.body
-
+  
 def Request.ok [ToBody e] (_req: Request) (body : e) : IO Melp.Response :=
   let body := ToBody.toBody body
   pure { status := Melp.Status.Ok, headers := headers body, body := body }
@@ -60,19 +60,9 @@ structure Route where
   method    : Melp.Method
   component : Component
 
-structure Router (α: Type) where
-  routes : HashMap Melp.Method (Ash.RouteMap α)
-
-def Router.push (router: Router Component) (path: List Ash.Pattern) (method: Melp.Method) (comp: Component) : Router Component :=
-  { router with routes := router.routes.update method (·.insert path comp) }
-
-def Router.get (router: Router Component) (path: Path) (method: Melp.Method) : Option (Component × Lean.HashMap String String) := do
-  let map ← router.routes.find? method
-  map.get path
-
 -- Yeah it's a state monad but I don't care ok? I'll adjust it in the future.
 structure App (e : Type) where
-  data : (Router Component -> IO (e × Router Component))
+  data : (Array Route -> IO (e × Array Route))
 
 -- Maps the first element
 def Prod.first {α β} :  (α → γ) → Prod α β →Prod γ β
@@ -93,7 +83,7 @@ instance : Monad App where
 def App.on (method : Melp.Method) (path : String) (component : Component) : App Unit :=
   App.mk $ λroutes => do
     let path   := Ash.Path.Pattern.parse path
-    let routes := routes.push path method component
+    let routes := routes.push { path := path, method := method, component := component }
     pure ((), routes)
 
 def App.get (path : String) (component : Component) : App Unit :=
@@ -107,30 +97,32 @@ def App.put (path : String) (component : Component) : App Unit :=
 
 def App.delete (path : String) (component : Component) : App Unit :=
   on Melp.Method.Delete path component
-
+  
 def App.run (app: App f) (addr : String) (port : String) (callback: IO Unit) : IO Unit := do
-    let server ← Melp.Server.new
+    let server ← Melp.Server.new 
 
-    let ⟨_, routes⟩ ← app.data (Router.mk HashMap.empty)
+    let ⟨_, routes⟩ ← app.data #[]
 
     let server := server.onConnection $ λconn => do
       let mut foundRoute := none
 
-      let path := Ash.Path.parse conn.data.path
-
-      match conn.method, path with
-      | none, _ | _, none => pure ()
-      | some method, some path =>
-          match routes.get path method with
-          | none => pure ()
-          | some (comp, params) => do
-            let request :=
-              { melp     := conn
-              , bindings := params
-              , path     := path
-              , query    := path.query.getD Lean.HashMap.empty }
-            foundRoute := some (comp request)
-
+      match conn.method with
+      | none => pure ()
+      | some method =>
+          for route in routes do
+            if route.method == method 
+              then 
+                match parsePath route.path conn.data.path with
+                | some (params, path) => do
+                    let request := { melp     := conn
+                                   , bindings := params
+                                   , path     := path
+                                   , query    := path.query.getD Lean.HashMap.empty }
+                    foundRoute := some (route.component request)
+                    break
+                | none => continue
+              else continue
+          
       match foundRoute with
       | some result => do
           let response ← result
@@ -140,5 +132,12 @@ def App.run (app: App f) (addr : String) (port : String) (callback: IO Unit) : I
     let server := server.onBind $ λ_ => callback
 
     Melp.Server.start server addr port
+  where
+
+
+    parsePath (pattern: List Ash.Pattern) (path : String) : Option (Lean.HashMap String String × Ash.Path) := do
+      let path   ← Ash.Path.parse path
+      let match' ← Ash.Path.matchPats pattern path
+      pure (match', path)
 
 end Ash
