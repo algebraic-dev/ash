@@ -5,6 +5,8 @@ import Soda
 import Soda.Grape
 import Soda.Grape.Text
 
+import Ash.Map
+
 open Grape
 open Grape.Text
 open Function
@@ -30,19 +32,19 @@ def Path.Pattern.pat : Grape (List Pattern) :=
   sepBy Path.Pattern.part (chr '/')
 
 def Path.Pattern.parse (pattern: String) : List Pattern :=
-    garantee (Grape.run (Path.Pattern.pat) (pattern.toSlice))    
+    garantee (Grape.run (Path.Pattern.pat) (pattern.toSlice))
   where
-    garantee : Result (List Pattern) → List Pattern 
+    garantee : Result (List Pattern) → List Pattern
       | Result.done res _ => res
       | Result.cont e     => garantee (e "".toSlice)
       | Result.error _ e  => [Pattern.Literal e]
-    
+
 -- Path parsing
 
 structure Path where
   segments : List String
   query : Option (Lean.HashMap String  String)
-  
+
 def Path.toHex : Char -> Nat
   | '0' => 0
   | '1' => 1
@@ -88,24 +90,48 @@ partial def Path.parse_query : Grape (Lean.HashMap String String) := do
 
 def Path.parse_path := do
   let segments ← sepBy Path.xalphas (string "/")
-  let query ← option (string "?" *> Path.parse_query) 
+  let query ← option (string "?" *> Path.parse_query)
   Grape.pure (Path.mk segments query)
 
 def Path.parse (str: String) : Option Path :=
-    garantee (Grape.run parse_path (str.toSlice))    
+    garantee (Grape.run parse_path (str.toSlice))
   where
     garantee : Result Path → Option Path
       | Result.done res _ => some res
       | Result.cont e     => garantee (e "".toSlice)
       | Result.error _ _  => none
 
-def Path.matchPats (pattern: List Pattern) (path: Path) : Option (Lean.HashMap String String) :=
-  let rec match' : List Pattern → List String → Lean.HashMap String String → Option (Lean.HashMap String String)
-    | [], [], acc => some acc
-    | [], _, _    => none
-    | _, [], _    => none
-    | Pattern.Literal  p :: ps, s :: ss, acc => if p == s then match' ps ss acc else none
-    | Pattern.Variable p :: ps, s :: ss, acc => match' ps ss (acc.insert p s)
-  match' pattern path.segments ({})
+inductive RouteMap (α: Type)
+  | fork : HashMap String (RouteMap α) → Option α → Option String → RouteMap α
+  deriving Repr
+
+def RouteMap.empty : RouteMap α := RouteMap.fork HashMap.empty none none
+
+def RouteMap.insert : RouteMap α → List Pattern → α → RouteMap α
+  | RouteMap.fork m _ o, [], x =>
+      RouteMap.fork m (some x) o
+  | RouteMap.fork m r o, Pattern.Literal x  :: xs, a =>
+      RouteMap.fork (m.insert x (RouteMap.insert (m.findD x RouteMap.empty) xs a)) r o
+  | RouteMap.fork m r _, Pattern.Variable x :: xs, a =>
+      RouteMap.insert (RouteMap.fork m r (some x)) xs a
+
+def RouteMap.get (x: RouteMap α) (path: Path) : Option (α × Lean.HashMap String String) :=
+  let rec match' : RouteMap α → List String → Lean.HashMap String String → Option (α × Lean.HashMap String String)
+    | RouteMap.fork _ res _, [], bindings => do
+      let resp ← res
+      return (resp, bindings)
+    | RouteMap.fork m resp (some var) , x :: xs , bindings =>
+      let bindings := bindings.insert var x
+      match xs with
+      | []      => do
+        let res ← resp
+        return (res, bindings)
+      | y :: xs => do
+        let res ← m.find? y
+        match' res xs bindings
+    | RouteMap.fork m _ none, x :: xs, bindings => do
+        let res ← m.find? x
+        match' res xs bindings
+  match' x path.segments ({})
 
 end Ash
