@@ -102,21 +102,36 @@ def Path.parse (str: String) : Option Path :=
       | Result.error _ _  => none
 
 inductive RouteMap (α: Type)
-  | fork    : HashMap String (RouteMap α) → Option (String × RouteMap α) → RouteMap α
-  | variant : String → RouteMap α → RouteMap α
-  | final   : α → RouteMap α
+  | fork : HashMap String (RouteMap α) → Option α → Option String → RouteMap α
+  deriving Repr
 
-def RouteMap.insert (map: RouteMap α) (pat: List Pattern) (x: α) :=
-  match map with
-  | literal 
+def RouteMap.empty : RouteMap α := RouteMap.fork HashMap.empty none none
 
-def Path.matchPats (pattern: List Pattern) (path: Path) : Option (Lean.HashMap String String) :=
-  let rec match' : List Pattern → List String → Lean.HashMap String String → Option (Lean.HashMap String String)
-    | [], [], acc => some acc
-    | [], _, _    => none
-    | _, [], _    => none
-    | Pattern.Literal  p :: ps, s :: ss, acc => if p == s then match' ps ss acc else none
-    | Pattern.Variable p :: ps, s :: ss, acc => match' ps ss (acc.insert p s)
-  match' pattern path.segments ({})
+def RouteMap.insert : RouteMap α → List Pattern → α → RouteMap α
+  | RouteMap.fork m _ o, [], x =>
+      RouteMap.fork m (some x) o
+  | RouteMap.fork m r o, Pattern.Literal x  :: xs, a =>
+      RouteMap.fork (m.insert x (RouteMap.insert (m.findD x RouteMap.empty) xs a)) r o
+  | RouteMap.fork m r _, Pattern.Variable x :: xs, a =>
+      RouteMap.insert (RouteMap.fork m r (some x)) xs a
+
+def RouteMap.get (x: RouteMap α) (path: Path) : Option (α × Lean.HashMap String String) :=
+  let rec match' : RouteMap α → List String → Lean.HashMap String String → Option (α × Lean.HashMap String String)
+    | RouteMap.fork _ res _, [], bindings => do
+      let resp ← res
+      return (resp, bindings)
+    | RouteMap.fork m resp (some var) , x :: xs , bindings =>
+      let bindings := bindings.insert var x
+      match xs with
+      | []      => do
+        let res ← resp
+        return (res, bindings)
+      | y :: xs => do
+        let res ← m.find? y
+        match' res xs bindings
+    | RouteMap.fork m _ none, x :: xs, bindings => do
+        let res ← m.find? x
+        match' res xs bindings
+  match' x path.segments ({})
 
 end Ash
